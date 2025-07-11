@@ -24,6 +24,7 @@ This repository contains a pure C implementation of a Kalman filter for real-tim
 │   ├── test_matrix.c # Unit tests for matrix operations
 │   └── CMakeLists.txt
 └── CMakeLists.txt    # Build configuration
+└── .gitattributes    # Git line ending configuration
 ```
 
 ## Building
@@ -129,16 +130,28 @@ This project includes comprehensive Doxygen documentation.
 
 The Kalman filter implementation follows the standard discrete-time formulation:
 
-**Prediction:**
-- State: `x(k|k-1) = F * x(k-1|k-1) + B * u(k-1)`
-- Covariance: `P(k|k-1) = F * P(k-1|k-1) * F^T + Q`
+**Prediction Step:**
+- State prediction: `x(k|k-1) = F * x(k-1|k-1) + B * u(k-1)`
+- Covariance prediction: `P(k|k-1) = F * P(k-1|k-1) * F^T + Q`
 
-**Update:**
-- Innovation: `y(k) = z(k) - H * x(k|k-1)`
+**Update Step:**
+- Innovation (residual): `y(k) = z(k) - H * x(k|k-1)`
 - Innovation covariance: `S(k) = H * P(k|k-1) * H^T + R`
 - Kalman gain: `K(k) = P(k|k-1) * H^T * S(k)^(-1)`
 - State update: `x(k|k) = x(k|k-1) + K(k) * y(k)`
 - Covariance update: `P(k|k) = (I - K(k) * H) * P(k|k-1)`
+
+Where:
+- `x` = state vector
+- `F` = state transition matrix
+- `B` = control matrix (optional)
+- `u` = control vector (optional)
+- `Q` = process noise covariance
+- `H` = observation matrix
+- `R` = measurement noise covariance
+- `P` = error covariance matrix
+- `z` = measurement vector
+- `I` = identity matrix
 
 ## License
 

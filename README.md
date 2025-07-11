@@ -43,6 +43,7 @@ cmake --preset release
 # Build
 cmake --build --preset debug
 cmake --build --preset release
+```
 
 ## Usage Example
 
@@ -87,23 +88,7 @@ kalman_destroy(kf);
 
 ## Documentation
 
-This project includes comprehensive Doxygen documentation. To generate the documentation:
-
-### Using CMake (if Doxygen is installed)
-```bash
-cmake --build build --target docs
-```
-
-### Using provided scripts
-```bash
-# Linux/macOS
-./generate_docs.sh
-
-# Windows
-generate_docs.bat
-```
-
-The generated documentation will be available in the `docs/html/` directory. Open `docs/html/index.html` in your browser to view the complete API documentation.
+This project includes comprehensive Doxygen documentation.
 
 ### Documentation Features
 - **Complete API Reference**: All functions, structures, and parameters

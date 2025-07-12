@@ -1,3 +1,5 @@
+[![CMake on multiple platforms](https://github.com/ronnymilleo/kalman_c/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=main)](https://github.com/ronnymilleo/kalman_c/actions/workflows/cmake-multi-platform.yml)
+
 # Kalman and Extended Kalman Filter Implementation in C
 
 This repository contains a pure C implementation of a Kalman Filter (KF) and an Extended Kalman Filter (EKF) for real-time state estimation.

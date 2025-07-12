@@ -18,6 +18,7 @@
 
 // Simple non-linear state transition function: f(x) = [x[0]^2, x[1]]
 void state_transition_function(const double *state_in, const double *control_in, double *state_out) {
+    (void)control_in; // Ignore control input for this test
     state_out[0] = state_in[0] * state_in[0];
     state_out[1] = state_in[1];
 }
@@ -47,7 +48,7 @@ void observation_jacobian_function(const double *state_in, double **jacobian_out
     }
 }
 
-int main() {
+int main(void) {
     printf("Running EKF tests...\n");
 
     kalman_t *ekf = kalman_create(2, 1, 0);

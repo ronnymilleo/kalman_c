@@ -30,7 +30,7 @@
 
 #define EPSILON 1e-9
 
-int test_matrix_add() {
+int test_matrix_add(void) {
     printf("Testing matrix addition...\n");
     
     double **A = matrix_allocate(2, 2);
@@ -76,7 +76,7 @@ int test_matrix_add() {
     return 1;
 }
 
-int test_matrix_subtract() {
+int test_matrix_subtract(void) {
     printf("Testing matrix subtraction...\n");
     
     double **A = matrix_allocate(2, 2);
@@ -122,7 +122,7 @@ int test_matrix_subtract() {
     return 1;
 }
 
-int test_matrix_transpose() {
+int test_matrix_transpose(void) {
     printf("Testing matrix transpose...\n");
     
     double **A = matrix_allocate(2, 2);
@@ -161,7 +161,7 @@ int test_matrix_transpose() {
     return 1;
 }
 
-int test_matrix_multiply() {
+int test_matrix_multiply(void) {
     printf("Testing matrix multiplication...\n");
     
     double **A = matrix_allocate(2, 2);
@@ -210,7 +210,7 @@ int test_matrix_multiply() {
     return 1;
 }
 
-int test_matrix_identity() {
+int test_matrix_identity(void) {
     printf("Testing identity matrix...\n");
     
     double **result = matrix_allocate(3, 3);
@@ -245,7 +245,7 @@ int test_matrix_identity() {
     return 1;
 }
 
-int main() {
+int main(void) {
     printf("Running matrix math tests...\n\n");
     
     int passed = 0;

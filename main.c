@@ -39,7 +39,7 @@
 #define BLUE    "\033[34m"
 #define YELLOW  "\033[33m"
 
-void printHeader() {
+void printHeader(void) {
     printf(BOLD "\n=== KALMAN FILTER DEMO ===" RESET "\n");
     printf("1D Position Tracking with Velocity\n\n");
 }
@@ -53,7 +53,7 @@ void printSection(const char* title) {
     printf("\n");
 }
 
-int main() {
+int main(void) {
     printHeader();
 
     printSection("Filter Initialization");

@@ -67,3 +67,10 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
+
+## Folders
+.cache/
+build/
+bin/
+Release/
+Debug/

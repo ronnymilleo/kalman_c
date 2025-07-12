@@ -155,6 +155,30 @@ if(KALMAN_BUILD_EXAMPLES)
         C_EXTENSIONS OFF
         OUTPUT_NAME "kalman"
     )
+
+    # Comprehensive Kalman filter demonstration executable  
+    add_executable(kalman_comprehensive_demo
+        demos/kalman_demo.c
+    )
+
+    # Link with the Kalman library
+    target_link_libraries(kalman_comprehensive_demo
+        PRIVATE
+            kalman_lib
+    )
+
+    # Apply compiler warnings to executable
+    if(KALMAN_ENABLE_WARNINGS)
+        target_compile_options(kalman_comprehensive_demo PRIVATE ${KALMAN_WARNING_FLAGS})
+    endif()
+
+    # Set target properties
+    set_target_properties(kalman_comprehensive_demo PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED ON
+        C_EXTENSIONS OFF
+        OUTPUT_NAME "kalman_comprehensive_demo"
+    )
 endif()
 
 # =============================================================================
@@ -188,7 +212,7 @@ install(FILES
 
 # Install executable if built
 if(KALMAN_BUILD_EXAMPLES)
-    install(TARGETS kalman_demo
+    install(TARGETS kalman_demo kalman_comprehensive_demo
         DESTINATION bin
     )
 endif()

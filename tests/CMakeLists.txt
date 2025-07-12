@@ -88,6 +88,37 @@ if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
     target_compile_options(test_ekf PRIVATE ${KALMAN_WARNING_FLAGS})
 endif()
 
+# Standard Kalman Filter test suite
+add_executable(test_kalman
+    test_kalman.c
+)
+
+# Link test executable with the main library
+target_link_libraries(test_kalman
+    PRIVATE
+        kalman_lib          # Link with main library target
+)
+
+# Configure include directories for tests
+target_include_directories(test_kalman
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../  # Access to source headers
+)
+
+# Set test executable properties
+set_target_properties(test_kalman PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED ON
+    C_EXTENSIONS OFF
+    FOLDER "Tests"
+    OUTPUT_NAME "test_kalman"
+)
+
+# Apply same warning flags as main project if enabled
+if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
+    target_compile_options(test_kalman PRIVATE ${KALMAN_WARNING_FLAGS})
+endif()
+
 # =============================================================================
 # Custom Test Targets
 # =============================================================================
@@ -95,8 +126,9 @@ endif()
 # Create a custom target to run all tests manually
 add_custom_target(run_tests
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_matrix
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ekf
-    DEPENDS test_matrix test_ekf
+    DEPENDS test_matrix test_kalman test_ekf
     COMMENT "Running all unit tests"
     VERBATIM
 )
@@ -125,8 +157,11 @@ if(VALGRIND_PROGRAM)
                 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_matrix
         COMMAND ${VALGRIND_PROGRAM} --tool=memcheck --leak-check=full --show-leak-kinds=all 
                 --track-origins=yes --error-exitcode=1
+                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman
+        COMMAND ${VALGRIND_PROGRAM} --tool=memcheck --leak-check=full --show-leak-kinds=all 
+                --track-origins=yes --error-exitcode=1
                 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ekf
-        DEPENDS test_matrix test_ekf
+        DEPENDS test_matrix test_kalman test_ekf
         COMMENT "Running tests with memory checking using Valgrind"
         VERBATIM
     )
@@ -145,6 +180,9 @@ if(KALMAN_ENABLE_COVERAGE)
         target_compile_options(test_matrix PRIVATE --coverage -fprofile-arcs -ftest-coverage)
         target_link_libraries(test_matrix PRIVATE --coverage)
         
+        target_compile_options(test_kalman PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+        target_link_libraries(test_kalman PRIVATE --coverage)
+        
         target_compile_options(test_ekf PRIVATE --coverage -fprofile-arcs -ftest-coverage)
         target_link_libraries(test_ekf PRIVATE --coverage)
         
@@ -155,10 +193,11 @@ if(KALMAN_ENABLE_COVERAGE)
         if(GCOV_PROGRAM OR LLVM_COV_PROGRAM)
             add_custom_target(coverage
                 COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_matrix
+                COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman
                 COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ekf
                 COMMAND echo "Generating coverage report..."
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-                DEPENDS test_matrix test_ekf
+                DEPENDS test_matrix test_kalman test_ekf
                 COMMENT "Generating code coverage report"
                 VERBATIM
             )

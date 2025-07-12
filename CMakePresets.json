@@ -1,30 +1,43 @@
 {
-  "version": 9,
+  "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 31,
+    "minor": 28,
     "patch": 0
   },
   "configurePresets": [
     {
       "name": "default",
       "displayName": "Debug",
-      "description": "Debug build using MinGW Makefiles generator",
       "binaryDir": "${sourceDir}/build/debug"
     },
     {
       "name": "debug",
-      "inherits": "default",
       "displayName": "Debug",
-      "description": "Debug build using MinGW Makefiles generator",
       "binaryDir": "${sourceDir}/build/debug"
     },
     {
       "name": "release",
-      "inherits": "default",
       "displayName": "Release",
-      "description": "Release build using MinGW Makefiles generator",
       "binaryDir": "${sourceDir}/build/release"
+    },
+    {
+      "name": "clang-debug",
+      "displayName": "Clang Debug",
+      "binaryDir": "${sourceDir}/build/clang-debug",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "clang-release",
+      "displayName": "Clang Release",
+      "binaryDir": "${sourceDir}/build/clang-release",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ],
   "buildPresets": [
@@ -35,6 +48,14 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "clang-debug",
+      "configurePreset": "clang-debug"
+    },
+    {
+      "name": "clang-release",
+      "configurePreset": "clang-release"
     }
   ]
 }

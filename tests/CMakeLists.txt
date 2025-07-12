@@ -33,6 +33,9 @@ add_executable(test_ekf
 # Add the parent directory to the include path for the EKF test
 target_include_directories(test_ekf PRIVATE ${CMAKE_SOURCE_DIR})
 
+# Link the math library for the EKF test (required for sqrt function)
+target_link_libraries(test_ekf PRIVATE m)
+
 #------------------------------------------------------------------------------
 # CTest Configuration
 #------------------------------------------------------------------------------

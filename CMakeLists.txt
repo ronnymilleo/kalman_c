@@ -27,6 +27,9 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 # Set the output directory for all executables to 'bin'
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# Set generate compile commands to ON
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 #------------------------------------------------------------------------------
 # Main Executable Target
 #------------------------------------------------------------------------------

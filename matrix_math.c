@@ -22,10 +22,9 @@
 
 #include "matrix_math.h"
 #include <stdlib.h>
-#include <string.h>
 #include <math.h>
 
-double** matrix_allocate(size_t rows, size_t cols) {
+double** matrix_allocate(const size_t rows, const size_t cols) {
     double **matrix = (double**)malloc(rows * sizeof(double*));
     if (!matrix) return NULL;
     
@@ -43,7 +42,7 @@ double** matrix_allocate(size_t rows, size_t cols) {
     return matrix;
 }
 
-void matrix_free(double **matrix, size_t rows) {
+void matrix_free(double **matrix, const size_t rows) {
     if (!matrix) return;
     
     for (size_t i = 0; i < rows; i++) {
@@ -52,7 +51,7 @@ void matrix_free(double **matrix, size_t rows) {
     free(matrix);
 }
 
-void matrix_copy(double **A, double **B, size_t rows, size_t cols) {
+void matrix_copy(double **A, double **B, const size_t rows, const size_t cols) {
     if (!A || !B) return;
     
     for (size_t i = 0; i < rows; i++) {
@@ -62,7 +61,7 @@ void matrix_copy(double **A, double **B, size_t rows, size_t cols) {
     }
 }
 
-int matrix_add(double **A, double **B, double **result, size_t rows, size_t cols) {
+int matrix_add(double **A, double **B, double **result, const size_t rows, const size_t cols) {
     if (!A || !B || !result) return -1;
 
     for (size_t i = 0; i < rows; i++) {
@@ -73,7 +72,7 @@ int matrix_add(double **A, double **B, double **result, size_t rows, size_t cols
     return 0;
 }
 
-int matrix_subtract(double **A, double **B, double **result, size_t rows, size_t cols) {
+int matrix_subtract(double **A, double **B, double **result, const size_t rows, const size_t cols) {
     if (!A || !B || !result) return -1;
 
     for (size_t i = 0; i < rows; i++) {
@@ -84,7 +83,7 @@ int matrix_subtract(double **A, double **B, double **result, size_t rows, size_t
     return 0;
 }
 
-int matrix_transpose(double **A, double **result, size_t rows, size_t cols) {
+int matrix_transpose(double **A, double **result, const size_t rows, const size_t cols) {
     if (!A || !result) return -1;
 
     for (size_t i = 0; i < rows; i++) {
@@ -95,7 +94,7 @@ int matrix_transpose(double **A, double **result, size_t rows, size_t cols) {
     return 0;
 }
 
-int matrix_multiply(double **A, double **B, double **result, size_t rowsA, size_t colsA, size_t colsB) {
+int matrix_multiply(double **A, double **B, double **result, const size_t rowsA, const size_t colsA, const size_t colsB) {
     if (!A || !B || !result) return -1;
 
     for (size_t i = 0; i < rowsA; i++) {
@@ -109,7 +108,7 @@ int matrix_multiply(double **A, double **B, double **result, size_t rowsA, size_
     return 0;
 }
 
-int matrix_vector_multiply(double **A, double *v, double *result, size_t rows, size_t cols) {
+int matrix_vector_multiply(double **A, const double *v, double *result, const size_t rows, const size_t cols) {
     if (!A || !v || !result) return -1;
 
     for (size_t i = 0; i < rows; i++) {
@@ -121,7 +120,7 @@ int matrix_vector_multiply(double **A, double *v, double *result, size_t rows, s
     return 0;
 }
 
-int matrix_identity(double **result, size_t n) {
+int matrix_identity(double **result, const size_t n) {
     if (!result) return -1;
     
     for (size_t i = 0; i < n; i++) {
@@ -132,7 +131,7 @@ int matrix_identity(double **result, size_t n) {
     return 0;
 }
 
-int matrix_inverse(double **A, double **result, size_t n) {
+int matrix_inverse(double **A, double **result, const size_t n) {
     if (!A || !result) return -1;
 
     // Create augmented matrix [A|I]
@@ -171,7 +170,7 @@ int matrix_inverse(double **A, double **result, size_t n) {
         }
 
         // Normalize pivot row
-        double pivot = augmented[i][i];
+        const double pivot = augmented[i][i];
         for (size_t j = 0; j < 2 * n; j++) {
             augmented[i][j] /= pivot;
         }
@@ -179,7 +178,7 @@ int matrix_inverse(double **A, double **result, size_t n) {
         // Eliminate other rows
         for (size_t k = 0; k < n; k++) {
             if (k != i) {
-                double factor = augmented[k][i];
+                const double factor = augmented[k][i];
                 for (size_t j = 0; j < 2 * n; j++) {
                     augmented[k][j] -= factor * augmented[i][j];
                 }

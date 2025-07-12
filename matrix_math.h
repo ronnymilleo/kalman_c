@@ -134,7 +134,7 @@ int matrix_multiply(double **A, double **B, double **result, size_t rowsA, size_
  * @param cols Number of columns in A
  * @return 0 on success, -1 on failure
  */
-int matrix_vector_multiply(double **A, double *v, double *result, size_t rows, size_t cols);
+int matrix_vector_multiply(double **A, const double *v, double *result, size_t rows, size_t cols);
 
 /**
  * Create identity matrix

@@ -8,7 +8,6 @@
   "configurePresets": [
     {
       "name": "default",
-      "generator": "MinGW Makefiles",
       "displayName": "Debug",
       "description": "Debug build using MinGW Makefiles generator",
       "binaryDir": "${sourceDir}/build/debug"

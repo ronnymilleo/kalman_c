@@ -25,7 +25,6 @@
  */
 
 #include <stdio.h>
-#include <assert.h>
 #include <math.h>
 #include "../matrix_math.h"
 
@@ -231,7 +230,7 @@ int test_matrix_identity() {
     // Verify results
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-            double expected = (i == j) ? 1.0 : 0.0;
+            const double expected = (i == j) ? 1.0 : 0.0;
             if (fabs(result[i][j] - expected) > EPSILON) {
                 printf("FAILED: Incorrect identity matrix\n");
                 matrix_free(result, 3);
@@ -250,7 +249,7 @@ int main() {
     printf("Running matrix math tests...\n\n");
     
     int passed = 0;
-    int total = 5;
+    const int total = 5;
     
     passed += test_matrix_add();
     passed += test_matrix_subtract();

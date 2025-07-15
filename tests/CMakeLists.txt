@@ -1,3 +1,11 @@
+cmake_minimum_required(VERSION 3.10)
+project(KalmanTests C)
+
+# Set C standard globally for all targets in this directory
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 # =============================================================================
 # Kalman Filter Implementation - Test Suite
 # =============================================================================
@@ -12,17 +20,6 @@
 # =============================================================================
 
 # =============================================================================
-# Test Configuration
-# =============================================================================
-
-# Test project should not redefine C standard if parent project already set it
-if(NOT CMAKE_C_STANDARD)
-    set(CMAKE_C_STANDARD 99)
-    set(CMAKE_C_STANDARD_REQUIRED ON)
-    set(CMAKE_C_EXTENSIONS OFF)
-endif()
-
-# =============================================================================
 # Test Executables
 # =============================================================================
 
@@ -31,28 +28,16 @@ add_executable(test_matrix
     test_matrix.c
 )
 
-# Link test executable with the main library
 target_link_libraries(test_matrix
     PRIVATE
-        kalman_lib          # Link with main library target
+        kalman_lib
 )
 
-# Configure include directories for tests
 target_include_directories(test_matrix
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../  # Access to source headers
+        ${CMAKE_CURRENT_SOURCE_DIR}/../
 )
 
-# Set test executable properties
-set_target_properties(test_matrix PROPERTIES
-    C_STANDARD 99
-    C_STANDARD_REQUIRED ON
-    C_EXTENSIONS OFF
-    FOLDER "Tests"
-    OUTPUT_NAME "test_matrix"
-)
-
-# Apply same warning flags as main project if enabled
 if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
     target_compile_options(test_matrix PRIVATE ${KALMAN_WARNING_FLAGS})
 endif()
@@ -62,78 +47,114 @@ add_executable(test_ekf
     test_ekf.c
 )
 
-# Link test executable with the main library
 target_link_libraries(test_ekf
     PRIVATE
-        kalman_lib          # Link with main library target
+        kalman_lib
 )
 
-# Configure include directories for tests
 target_include_directories(test_ekf
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../  # Access to source headers
+        ${CMAKE_CURRENT_SOURCE_DIR}/../
 )
 
-# Set test executable properties
-set_target_properties(test_ekf PROPERTIES
-    C_STANDARD 99
-    C_STANDARD_REQUIRED ON
-    C_EXTENSIONS OFF
-    FOLDER "Tests"
-    OUTPUT_NAME "test_ekf"
-)
-
-# Apply same warning flags as main project if enabled
 if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
     target_compile_options(test_ekf PRIVATE ${KALMAN_WARNING_FLAGS})
 endif()
 
-# Standard Kalman Filter test suite
-add_executable(test_kalman
-    test_kalman.c
+
+
+# Basic Kalman Filter functionality tests
+add_executable(test_kalman_basic
+    test_kalman_basic.c
 )
 
-# Link test executable with the main library
-target_link_libraries(test_kalman
+target_link_libraries(test_kalman_basic
     PRIVATE
-        kalman_lib          # Link with main library target
+        kalman_lib
 )
 
-# Configure include directories for tests
-target_include_directories(test_kalman
+target_include_directories(test_kalman_basic
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../  # Access to source headers
+        ${CMAKE_CURRENT_SOURCE_DIR}/../
 )
 
-# Set test executable properties
-set_target_properties(test_kalman PROPERTIES
-    C_STANDARD 99
-    C_STANDARD_REQUIRED ON
-    C_EXTENSIONS OFF
-    FOLDER "Tests"
-    OUTPUT_NAME "test_kalman"
-)
-
-# Apply same warning flags as main project if enabled
 if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
-    target_compile_options(test_kalman PRIVATE ${KALMAN_WARNING_FLAGS})
+    target_compile_options(test_kalman_basic PRIVATE ${KALMAN_WARNING_FLAGS})
+endif()
+
+# 1D tracking tests
+add_executable(test_kalman_1d
+    test_kalman_1d.c
+)
+
+target_link_libraries(test_kalman_1d
+    PRIVATE
+        kalman_lib
+)
+
+target_include_directories(test_kalman_1d
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../
+)
+
+if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
+    target_compile_options(test_kalman_1d PRIVATE ${KALMAN_WARNING_FLAGS})
+endif()
+
+# 2D tracking tests
+add_executable(test_kalman_2d
+    test_kalman_2d.c
+)
+
+target_link_libraries(test_kalman_2d
+    PRIVATE
+        kalman_lib
+)
+
+target_include_directories(test_kalman_2d
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../
+)
+
+if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
+    target_compile_options(test_kalman_2d PRIVATE ${KALMAN_WARNING_FLAGS})
+endif()
+
+# Noise sensitivity tests
+add_executable(test_kalman_noise
+    test_kalman_noise.c
+)
+
+target_link_libraries(test_kalman_noise
+    PRIVATE
+        kalman_lib
+)
+
+target_include_directories(test_kalman_noise
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../
+)
+
+if(KALMAN_ENABLE_WARNINGS AND DEFINED KALMAN_WARNING_FLAGS)
+    target_compile_options(test_kalman_noise PRIVATE ${KALMAN_WARNING_FLAGS})
 endif()
 
 # =============================================================================
 # Custom Test Targets
 # =============================================================================
 
-# Create a custom target to run all tests manually
 add_custom_target(run_tests
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_matrix
-    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_basic
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_1d
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_2d
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_noise
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ekf
-    DEPENDS test_matrix test_kalman test_ekf
+    DEPENDS test_matrix test_kalman_basic test_kalman_1d test_kalman_2d test_kalman_noise test_ekf
     COMMENT "Running all unit tests"
     VERBATIM
 )
 
-# Create individual test run targets
 add_custom_target(run_matrix_tests
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_matrix
     DEPENDS test_matrix
@@ -148,7 +169,6 @@ add_custom_target(run_ekf_tests
     VERBATIM
 )
 
-# Create a custom target for running tests with memory checking (if available)
 find_program(VALGRIND_PROGRAM valgrind)
 if(VALGRIND_PROGRAM)
     add_custom_target(run_tests_memcheck
@@ -157,11 +177,20 @@ if(VALGRIND_PROGRAM)
                 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_matrix
         COMMAND ${VALGRIND_PROGRAM} --tool=memcheck --leak-check=full --show-leak-kinds=all 
                 --track-origins=yes --error-exitcode=1
-                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman
+                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_basic
+        COMMAND ${VALGRIND_PROGRAM} --tool=memcheck --leak-check=full --show-leak-kinds=all 
+                --track-origins=yes --error-exitcode=1
+                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_1d
+        COMMAND ${VALGRIND_PROGRAM} --tool=memcheck --leak-check=full --show-leak-kinds=all 
+                --track-origins=yes --error-exitcode=1
+                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_2d
+        COMMAND ${VALGRIND_PROGRAM} --tool=memcheck --leak-check=full --show-leak-kinds=all 
+                --track-origins=yes --error-exitcode=1
+                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_noise
         COMMAND ${VALGRIND_PROGRAM} --tool=memcheck --leak-check=full --show-leak-kinds=all 
                 --track-origins=yes --error-exitcode=1
                 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ekf
-        DEPENDS test_matrix test_kalman test_ekf
+        DEPENDS test_matrix test_kalman_basic test_kalman_1d test_kalman_2d test_kalman_noise test_ekf
         COMMENT "Running tests with memory checking using Valgrind"
         VERBATIM
     )
@@ -180,8 +209,17 @@ if(KALMAN_ENABLE_COVERAGE)
         target_compile_options(test_matrix PRIVATE --coverage -fprofile-arcs -ftest-coverage)
         target_link_libraries(test_matrix PRIVATE --coverage)
         
-        target_compile_options(test_kalman PRIVATE --coverage -fprofile-arcs -ftest-coverage)
-        target_link_libraries(test_kalman PRIVATE --coverage)
+        target_compile_options(test_kalman_basic PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+        target_link_libraries(test_kalman_basic PRIVATE --coverage)
+        
+        target_compile_options(test_kalman_1d PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+        target_link_libraries(test_kalman_1d PRIVATE --coverage)
+        
+        target_compile_options(test_kalman_2d PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+        target_link_libraries(test_kalman_2d PRIVATE --coverage)
+        
+        target_compile_options(test_kalman_noise PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+        target_link_libraries(test_kalman_noise PRIVATE --coverage)
         
         target_compile_options(test_ekf PRIVATE --coverage -fprofile-arcs -ftest-coverage)
         target_link_libraries(test_ekf PRIVATE --coverage)
@@ -193,11 +231,14 @@ if(KALMAN_ENABLE_COVERAGE)
         if(GCOV_PROGRAM OR LLVM_COV_PROGRAM)
             add_custom_target(coverage
                 COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_matrix
-                COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman
+                COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_basic
+                COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_1d
+                COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_2d
+                COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_kalman_noise
                 COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_ekf
                 COMMAND echo "Generating coverage report..."
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-                DEPENDS test_matrix test_kalman test_ekf
+                DEPENDS test_matrix test_kalman_basic test_kalman_1d test_kalman_2d test_kalman_noise test_ekf
                 COMMENT "Generating code coverage report"
                 VERBATIM
             )
@@ -214,7 +255,7 @@ endif()
 
 message(STATUS "")
 message(STATUS "=== Test Configuration Summary ===")
-message(STATUS "Test executables:     test_matrix, test_ekf")
+message(STATUS "Test executables:     test_matrix, test_kalman_basic, test_kalman_1d, test_kalman_2d, test_kalman_noise, test_ekf")
 message(STATUS "Coverage enabled:     ${KALMAN_ENABLE_COVERAGE}")
 if(VALGRIND_PROGRAM)
     message(STATUS "Valgrind available:   Yes (${VALGRIND_PROGRAM})")

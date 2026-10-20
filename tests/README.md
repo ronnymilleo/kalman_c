@@ -5,10 +5,12 @@ the tests of one topic and is registered with CTest.
 
 | Executable               | Covers                                                                              |
 |--------------------------|-------------------------------------------------------------------------------------|
+| `angle_tests`            | Wrapping angles and subtracting them the short way around                           |
 | `matrix_tests`           | Construction, arithmetic, transpose, multiplication and inversion of matrices       |
 | `kalman_tests`           | Setup, validation, prediction and update of the linear filter                       |
 | `kalman_ekf_tests`       | Non-linear prediction and update, Jacobian evaluation, incomplete models            |
 | `kalman_tracking_tests`  | The filter following a moving object through noisy measurements                     |
+| `kalman_wrap_tests`      | The residual and state normalizer hooks, with a heading that crosses the +-pi boundary |
 
 `test_support.[ch]` holds what they share: a pseudo-random generator, so noisy scenarios give the same numbers on every
 platform, and builders for the usual position and velocity models.

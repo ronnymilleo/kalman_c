@@ -104,13 +104,17 @@ endfunction()
 # =============================================================================
 
 set(KALMAN_C_FORMAT_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/angle.c
+    ${CMAKE_SOURCE_DIR}/src/angle.h
     ${CMAKE_SOURCE_DIR}/src/kalman.c
     ${CMAKE_SOURCE_DIR}/src/kalman.h
     ${CMAKE_SOURCE_DIR}/src/matrix.c
     ${CMAKE_SOURCE_DIR}/src/matrix.h
+    ${CMAKE_SOURCE_DIR}/tests/angle_tests.c
     ${CMAKE_SOURCE_DIR}/tests/kalman_ekf_tests.c
     ${CMAKE_SOURCE_DIR}/tests/kalman_tests.c
     ${CMAKE_SOURCE_DIR}/tests/kalman_tracking_tests.c
+    ${CMAKE_SOURCE_DIR}/tests/kalman_wrap_tests.c
     ${CMAKE_SOURCE_DIR}/tests/matrix_tests.c
     ${CMAKE_SOURCE_DIR}/tests/test_support.c
     ${CMAKE_SOURCE_DIR}/tests/test_support.h

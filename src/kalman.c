@@ -271,10 +271,38 @@ kalman_status_t kalman_set_observation_jacobian_function(kalman_t *kf, const kal
 }
 
 /**
+ * @brief   Sets the function that computes the innovation, so angular measurements can wrap around.
+ * @param[in,out] kf        Filter to update.
+ * @param[in]     residual  Function to use, or NULL to subtract the measurement from the prediction.
+ * @return  kalman_status_ok, or why the function was rejected.
+ */
+kalman_status_t kalman_set_residual_function(kalman_t *kf, const kalman_residual_fn residual) {
+    if (kf == NULL) {
+        return kalman_status_null_argument;
+    }
+    kf->residual_function = residual;
+    return kalman_status_ok;
+}
+
+/**
+ * @brief   Sets the function that keeps the state valid, such as wrapping angles or normalizing a quaternion.
+ * @param[in,out] kf          Filter to update.
+ * @param[in]     normalizer  Function to use, or NULL to leave the state as the filter computes it.
+ * @return  kalman_status_ok, or why the function was rejected.
+ */
+kalman_status_t kalman_set_state_normalizer(kalman_t *kf, const kalman_state_normalizer_fn normalizer) {
+    if (kf == NULL) {
+        return kalman_status_null_argument;
+    }
+    kf->state_normalizer = normalizer;
+    return kalman_status_ok;
+}
+
+/**
  * @brief   Moves the estimate one step forward in time.
  * @details Linear model: `x = F x + B u` and `P = F P F^T + Q`. When the state transition function and its Jacobian
- *          are set, `x = f(x, u)` and `F` is the Jacobian evaluated at the estimate the step starts from. The filter is
- *          left unchanged when the call fails.
+ *          are set, `x = f(x, u)` and `F` is the Jacobian evaluated at the estimate the step starts from. The state
+ * normalizer, when set, adjusts the new state before it is stored. The filter is left unchanged when the call fails.
  * @param[in,out] kf       Filter to advance.
  * @param[in]     control  `control_dim` values, or null when there is no control input.
  * @return  kalman_status_ok, or why the step could not be taken.
@@ -326,6 +354,9 @@ kalman_status_t kalman_predict(kalman_t *kf, const double *control) {
         return from_matrix_status(status);
     }
 
+    if (kf->state_normalizer != NULL) {
+        kf->state_normalizer(next_state);
+    }
     for (size_t index = 0; index < kf->state_dim; index++) {
         kf->state[index] = next_state[index];
     }
@@ -337,8 +368,9 @@ kalman_status_t kalman_predict(kalman_t *kf, const double *control) {
  * @brief   Corrects the estimate with a measurement.
  * @details Computes the innovation `y = z - H x`, its covariance `S = H P H^T + R`, the gain `K = P H^T S^-1`, and
  *          then `x = x + K y` and `P = (I - K H) P`. When the observation function and its Jacobian are set, `H x`
- *          becomes `h(x)` and `H` the Jacobian evaluated at the current estimate. The filter is left unchanged when
- *          the call fails.
+ *          becomes `h(x)` and `H` the Jacobian evaluated at the current estimate. The residual function, when set,
+ *          computes `y` instead of the subtraction, and the state normalizer adjusts the corrected state before it is
+ *          stored. The filter is left unchanged when the call fails.
  * @param[in,out] kf           Filter to correct.
  * @param[in]     measurement  `measurement_dim` values.
  * @return  kalman_status_ok, kalman_status_singular_innovation when `S` cannot be inverted, or why the correction
@@ -367,8 +399,12 @@ kalman_status_t kalman_update(kalman_t *kf, const double *measurement) {
     }
 
     double innovation[KALMAN_MAX_DIM] = {0.0};
-    for (size_t index = 0; index < kf->measurement_dim; index++) {
-        innovation[index] = measurement[index] - expected_measurement[index];
+    if (kf->residual_function != NULL) {
+        kf->residual_function(measurement, expected_measurement, innovation);
+    } else {
+        for (size_t index = 0; index < kf->measurement_dim; index++) {
+            innovation[index] = measurement[index] - expected_measurement[index];
+        }
     }
 
     // S = H P H^T + R
@@ -425,8 +461,15 @@ kalman_status_t kalman_update(kalman_t *kf, const double *measurement) {
         return from_matrix_status(status);
     }
 
+    double corrected_state[KALMAN_MAX_DIM] = {0.0};
     for (size_t index = 0; index < kf->state_dim; index++) {
-        kf->state[index] += correction[index];
+        corrected_state[index] = kf->state[index] + correction[index];
+    }
+    if (kf->state_normalizer != NULL) {
+        kf->state_normalizer(corrected_state);
+    }
+    for (size_t index = 0; index < kf->state_dim; index++) {
+        kf->state[index] = corrected_state[index];
     }
     kf->error_covariance = covariance;
     return kalman_status_ok;

@@ -66,6 +66,24 @@ typedef void (*kalman_state_jacobian_fn)(const double *state, matrix_t *jacobian
 typedef void (*kalman_observation_jacobian_fn)(const double *state, matrix_t *jacobian);
 
 /**
+ * @brief   Difference between a measurement and the one the estimate predicts, the innovation `y`.
+ * @details A plain subtraction is wrong for angles: a bearing of 179 degrees measured against an expected -179 is a
+ *          2 degree error, not 358. Set a residual function that wraps those components, see angle_wrap_radians().
+ * @param[in]  measurement           Measurement, `measurement_dim` values.
+ * @param[in]  expected_measurement  What the estimate predicts, `measurement_dim` values.
+ * @param[out] residual              The difference, `measurement_dim` values.
+ */
+typedef void (*kalman_residual_fn)(const double *measurement, const double *expected_measurement, double *residual);
+
+/**
+ * @brief   Brings a state back to its valid set after the filter moved it.
+ * @details Angles must stay within one turn, and a quaternion must keep unit length, but a prediction or a correction
+ *          knows nothing about that. The filter calls this on the new state before storing it.
+ * @param[in,out] state  State to adjust in place, `state_dim` values.
+ */
+typedef void (*kalman_state_normalizer_fn)(double *state);
+
+/**
  * @struct  kalman_t
  * @brief   Everything a Kalman or Extended Kalman filter needs, stored inline.
  * @details The struct is public so the caller can allocate it, but its invariants are kept by convention: set it up
@@ -98,6 +116,10 @@ typedef struct kalman_t {
     kalman_state_jacobian_fn state_jacobian_function;
     kalman_observation_jacobian_fn observation_jacobian_function;
 
+    // Optional hooks, NULL by default: the subtraction of the measurement and no adjustment of the state
+    kalman_residual_fn residual_function;
+    kalman_state_normalizer_fn state_normalizer;
+
     bool is_initialized;
 } kalman_t;
 
@@ -120,6 +142,10 @@ kalman_status_t kalman_set_state_transition_function(kalman_t *kf, kalman_state_
 kalman_status_t kalman_set_observation_function(kalman_t *kf, kalman_observation_fn h);
 kalman_status_t kalman_set_state_jacobian_function(kalman_t *kf, kalman_state_jacobian_fn jf);
 kalman_status_t kalman_set_observation_jacobian_function(kalman_t *kf, kalman_observation_jacobian_fn jh);
+
+// Angles and other states that do not live on a line
+kalman_status_t kalman_set_residual_function(kalman_t *kf, kalman_residual_fn residual);
+kalman_status_t kalman_set_state_normalizer(kalman_t *kf, kalman_state_normalizer_fn normalizer);
 
 // Filtering
 kalman_status_t kalman_predict(kalman_t *kf, const double *control);

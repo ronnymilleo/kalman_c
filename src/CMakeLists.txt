@@ -2,6 +2,21 @@
 # Libraries
 # =============================================================================
 
+add_library(kalman-c-angle-lib STATIC
+    angle.c
+    angle.h
+)
+
+target_include_directories(kalman-c-angle-lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+# fmod() lives in the math library on Unix
+if(UNIX)
+    target_link_libraries(kalman-c-angle-lib PUBLIC m)
+endif()
+
+kalman_c_configure_target(kalman-c-angle-lib)
+kalman_c_target_coverage(kalman-c-angle-lib)
+
 add_library(kalman-c-matrix-lib STATIC
     matrix.c
     matrix.h
@@ -31,5 +46,6 @@ kalman_c_configure_target(kalman-c-filter-lib)
 kalman_c_target_coverage(kalman-c-filter-lib)
 
 # Formatting runs before every build, so unformatted code never reaches a commit
+add_dependencies(kalman-c-angle-lib format)
 add_dependencies(kalman-c-matrix-lib format)
 add_dependencies(kalman-c-filter-lib format)

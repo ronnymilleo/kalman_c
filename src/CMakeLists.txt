@@ -18,6 +18,7 @@ if(UNIX)
 endif()
 
 kalman_c_configure_target(kalman-c-matrix-lib)
+kalman_c_target_coverage(kalman-c-matrix-lib)
 
 add_library(kalman-c-filter-lib STATIC
     kalman.c
@@ -27,6 +28,7 @@ add_library(kalman-c-filter-lib STATIC
 target_link_libraries(kalman-c-filter-lib PUBLIC kalman-c-matrix-lib)
 
 kalman_c_configure_target(kalman-c-filter-lib)
+kalman_c_target_coverage(kalman-c-filter-lib)
 
 # Formatting runs before every build, so unformatted code never reaches a commit
 add_dependencies(kalman-c-matrix-lib format)

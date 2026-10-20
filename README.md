@@ -22,6 +22,7 @@ Kalman and Extended Kalman filters in C, for state estimation on hosts and embed
 
 ```
 ├── src/
+│   ├── angle.h / angle.c     # Wrapping angles and subtracting them the short way around
 │   ├── matrix.h / matrix.c   # Fixed-capacity matrices and linear algebra
 │   └── kalman.h / kalman.c   # Kalman and Extended Kalman filter
 ├── tests/                    # Unity tests, one executable per topic
@@ -166,6 +167,31 @@ kalman_set_observation_jacobian_function(&ekf, range_jacobian);
 A function without its Jacobian, or the other way round, makes `kalman_predict()` and `kalman_update()` return
 `kalman_status_incomplete_model` rather than quietly using the linear model.
 
+### Angles
+
+A heading or a bearing lives on a circle: 179 degrees measured against a prediction of -179 degrees is a 2 degree error,
+not 358, and a plain subtraction gets it wrong. Two optional hooks fix that, for the linear and the extended filter alike:
+
+```c
+#include "angle.h"
+
+static void bearing_residual(const double *measurement, const double *expected, double *residual) {
+    residual[0] = angle_difference_radians(measurement[0], expected[0]);
+}
+
+static void wrap_heading(double *state) {
+    state[0] = angle_wrap_radians(state[0]);
+}
+
+kalman_set_residual_function(&kf, bearing_residual); // computes the innovation y of every update
+kalman_set_state_normalizer(&kf, wrap_heading);      // adjusts the state before predict and update store it
+```
+
+The residual function replaces `y = z - h(x)`, and the state normalizer is the place to wrap angle states, or to
+renormalize any other state with a constraint, once the filter has moved it. Both default to NULL, which keeps the
+plain subtraction and leaves the state as computed. Link `kalman-c-angle-lib` for `angle_wrap_radians()` and
+`angle_difference_radians()`.
+
 ## Mathematical background
 
 ### Prediction
@@ -176,7 +202,8 @@ A function without its Jacobian, or the other way round, makes `kalman_predict()
 
 ### Update
 
-- **Innovation**: `y = z - H x` (linear) or `y = z - h(x)` (extended, with `H` the Jacobian of `h`)
+- **Innovation**: `y = z - H x` (linear) or `y = z - h(x)` (extended, with `H` the Jacobian of `h`); a residual
+  function can replace the subtraction
 - **Innovation covariance**: `S = H P Hᵀ + R`
 - **Kalman gain**: `K = P Hᵀ S⁻¹`
 - **State**: `x = x + K y`

@@ -1,212 +1,182 @@
-# Kalman and Extended Kalman Filter Implementation in C
+# KalmanC
 
-This repository contains a pure C implementation of a Kalman Filter (KF) and an Extended Kalman Filter (EKF) for real-time state estimation.
+Kalman and Extended Kalman filters in C, for state estimation on hosts and embedded targets.
 
 ## Features
 
-- **Dual Filter Support**: Implements both standard KF for linear systems and EKF for non-linear systems.
-- **Pure C Implementation**: No C++ dependencies, compatible with the C99 standard.
-- **Dynamic Memory Management**: Efficient allocation and deallocation of matrices.
-- **Comprehensive Matrix Operations**: Includes addition, subtraction, multiplication, transpose, and inversion.
-- **Robust Error Handling**: Provides error checking and safe memory cleanup.
-- **Well-Documented API**: Clear function signatures with comprehensive Doxygen-style comments.
-- **Unit Tests**: Contains test suites for both matrix operations and the EKF implementation.
-- **Example Application**: A demonstration of 1D position tracking with velocity estimation.
+- **Kalman and Extended Kalman filter**: the same `kalman_t` runs the linear model, or the non-linear one once the state
+  transition and observation functions and their Jacobians are set.
+- **No dynamic allocation**: every matrix lives inside `kalman_t`, which the caller places on the stack or in static
+  memory. Capacity is fixed at compile time (see [Capacity](#capacity)).
+- **Status codes**: every function reports success or the kind of failure through `kalman_status_t` or
+  `matrix_status_t`; results come back through out-parameters.
+- **Small matrix module**: addition, subtraction, transpose, multiplication and inversion by Gauss-Jordan elimination
+  with partial pivoting.
+- **Unit tests with Unity** that run on the host and can be reused on a target.
 
-## Project Structure
+## Project structure
 
 ```
-├── kalman.h          # Main Kalman filter interface
-├── kalman.c          # Kalman filter implementation
-├── matrix_math.h     # Matrix operations interface
-├── matrix_math.c     # Matrix operations implementation
-├── main.c            # Example usage and demonstration
-├── tests/
-│   ├── test_matrix.c # Unit tests for matrix operations
-│   ├── test_ekf.c    # Unit tests for EKF setup
-│   └── CMakeLists.txt
-└── CMakeLists.txt    # Build configuration
-└── .gitattributes    # Git line ending configuration
+├── src/
+│   ├── matrix.h / matrix.c   # Fixed-capacity matrices and linear algebra
+│   └── kalman.h / kalman.c   # Kalman and Extended Kalman filter
+├── tests/                    # Unity tests, one executable per topic
+├── vendor/unity              # Unity test framework (git submodule)
+└── CMakeLists.txt
 ```
 
 ## Building
 
-### Prerequisites
+You need CMake 3.28 or newer, Ninja and a C17 compiler (GCC, Clang or MSVC).
 
-- CMake 3.14 or higher
-- A C99-compatible compiler (such as GCC, Clang, or MSVC)
-- Doxygen (optional, for generating documentation)
+```bash
+# Unity is only needed for the tests
+git submodule update --init vendor/unity
 
-### Build Instructions
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug
+```
 
-The project uses CMake with presets for easy configuration and building.
+The presets are `debug`, `release`, `clang-debug` and `clang-release`, and build into `build/<preset>`. Binaries and
+libraries end up in `out/<build type>/bin` and `out/<build type>/lib`.
 
-1.  **Configure the project:**
+Without presets:
 
-    ```bash
-    # For a debug build
-    cmake --preset debug
+```bash
+cmake -S . -B build -G Ninja -DKALMAN_C_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
 
-    # For a release build
-    cmake --preset release
-    ```
+| Option                        | Default | Purpose                                                    |
+|-------------------------------|---------|------------------------------------------------------------|
+| `KALMAN_C_BUILD_TESTS`        | `OFF`   | Build the unit tests                                       |
+| `KALMAN_C_WARNINGS_AS_ERRORS` | `OFF`   | Make warnings in the project's code fail the build         |
+| `KALMAN_C_ENABLE_SANITIZERS`  | `OFF`   | AddressSanitizer and UndefinedBehaviorSanitizer            |
+| `KALMAN_C_ENABLE_COVERAGE`    | `OFF`   | Instrument the code for `gcov`/`llvm-cov`                  |
 
-2.  **Build the project:**
+Building also runs `clang-format` over the sources when it is installed, through the `format` target.
 
-    ```bash
-    # Build the debug configuration
-    cmake --build --preset debug
+To use the library in another CMake project, add this folder with `add_subdirectory` and link `kalman-c-filter-lib`,
+which brings `kalman-c-matrix-lib` along.
 
-    # Build the release configuration
-    cmake --build --preset release
-    ```
+## Capacity
 
-    Executables will be placed in the `build/<preset>/bin` directory.
+`MATRIX_MAX_DIM` (default 8) is the largest number of rows or columns of a matrix, and so the largest number of
+states, measurements or controls of a filter. Set the `KALMAN_C_MATRIX_MAX_DIM` cache variable to fit the target's
+memory; it is passed to everything that links the library, so `matrix_t` has the same size everywhere:
 
-## Usage Example (Linear KF)
+```bash
+cmake -S . -B build -G Ninja -DKALMAN_C_MATRIX_MAX_DIM=4
+```
+
+When the sources are built some other way, define `MATRIX_MAX_DIM` for every file that includes `matrix.h`.
+
+A `matrix_t` takes `MATRIX_MAX_DIM² * 8` bytes plus two sizes, and a `kalman_t` holds six of them. `kalman_update()`
+keeps about a dozen more on the stack while it runs, so budget the stack accordingly on small targets.
+
+## Usage
+
+### Linear filter
 
 ```c
 #include "kalman.h"
-#include "matrix_math.h"
 
-// Create a 2D state, 1D measurement Kalman filter
-kalman_t *kf = kalman_create(2, 1, 0);
+// Track position and velocity from position measurements
+const double dt = 0.1;
 
-// Initialize state [position=0, velocity=0]
-double initialState[2] = {0.0, 0.0};
-kalman_initialize_state(kf, initialState);
+kalman_t kf;
+if (kalman_init(&kf, 2, 1, 0) != kalman_status_ok) {
+    return;
+}
 
-// Set up state transition matrix (constant velocity model)
-double **F = matrix_allocate(2, 2);
-F[0][0] = 1.0; F[0][1] = 1.0;  // dt = 1.0
-F[1][0] = 0.0; F[1][1] = 1.0;
-kalman_set_state_transition_matrix(kf, F);
+matrix_t f;
+matrix_t h;
+matrix_t q;
+matrix_t r;
+matrix_t p;
+matrix_from_values(&f, 2, 2, (const double[]){1.0, dt, 0.0, 1.0});
+matrix_from_values(&h, 1, 2, (const double[]){1.0, 0.0});
+matrix_from_values(&q, 2, 2, (const double[]){0.01, 0.0, 0.0, 0.01});
+matrix_from_values(&r, 1, 1, (const double[]){0.25});
+matrix_from_values(&p, 2, 2, (const double[]){1.0, 0.0, 0.0, 1.0});
 
-// Set up observation matrix (measure position only)
-double **H = matrix_allocate(1, 2);
-H[0][0] = 1.0; H[0][1] = 0.0;
-kalman_set_observation_matrix(kf, H);
+const double initial_state[2] = {0.0, 0.0};
+kalman_initialize_state(&kf, initial_state);
+kalman_set_state_transition_matrix(&kf, &f);
+kalman_set_observation_matrix(&kf, &h);
+kalman_set_process_noise_covariance(&kf, &q);
+kalman_set_measurement_noise_covariance(&kf, &r);
+kalman_set_error_covariance(&kf, &p); // the filter is ready once P is set
 
-// ... set other matrices (Q, R, P) ...
+const double measurement[1] = {1.2};
+if (kalman_predict(&kf, nullptr) == kalman_status_ok && kalman_update(&kf, measurement) == kalman_status_ok) {
+    double position = 0.0;
+    double velocity = 0.0;
+    kalman_get_state_element(&kf, 0, &position);
+    kalman_get_state_element(&kf, 1, &velocity);
+}
 
-// Prediction and update cycle
-kalman_predict(kf, NULL);      // Predict step
-double measurement[1] = {1.2};
-kalman_update(kf, measurement); // Update step
-
-// Get results
-double position = kalman_get_state_element(kf, 0);
-double velocity = kalman_get_state_element(kf, 1);
-
-// Cleanup
-matrix_free(F, 2);
-matrix_free(H, 1);
-kalman_destroy(kf);
+kalman_deinit(&kf);
 ```
 
-## Usage Example (Extended EKF)
+Check the status of each call in real code; they are ignored here to keep the example short.
+
+### Extended filter
+
+Set the four functions and the filter switches to the non-linear model. The Jacobian callbacks receive a matrix that is
+already sized, so they only fill in the entries:
 
 ```c
-#include "kalman.h"
-#include "matrix_math.h"
-#include <math.h>
-
-// Non-linear state transition function
-void state_transition_fn(const double *state_in, const double *control_in, double *state_out) {
-    state_out[0] = state_in[0] + state_in[1]; // position += velocity
-    state_out[1] = state_in[1];              // velocity remains constant
+static void next_state(const double *state, const double *control, double *next_state_out) {
+    control;
+    next_state_out[0] = state[0] + state[1];
+    next_state_out[1] = state[1];
 }
 
-// Jacobian of the state transition function
-void state_jacobian_fn(const double *state_in, double **jacobian_out) {
-    jacobian_out[0][0] = 1.0;
-    jacobian_out[0][1] = 1.0;
-    jacobian_out[1][0] = 0.0;
-    jacobian_out[1][1] = 1.0;
+static void next_state_jacobian(const double *state, matrix_t *jacobian) {
+    state;
+    jacobian->data[0][0] = 1.0;
+    jacobian->data[0][1] = 1.0;
+    jacobian->data[1][0] = 0.0;
+    jacobian->data[1][1] = 1.0;
 }
 
-// Non-linear observation function (e.g., measuring range)
-void observation_fn(const double *state_in, double *measurement_out) {
-    measurement_out[0] = sqrt(state_in[0] * state_in[0]);
+static void range(const double *state, double *measurement) {
+    measurement[0] = sqrt(state[0] * state[0] + state[1] * state[1]);
 }
 
-// Jacobian of the observation function
-void observation_jacobian_fn(const double *state_in, double **jacobian_out) {
-    jacobian_out[0][0] = state_in[0] / sqrt(state_in[0] * state_in[0]);
-    jacobian_out[0][1] = 0.0;
+static void range_jacobian(const double *state, matrix_t *jacobian) {
+    const double distance = sqrt(state[0] * state[0] + state[1] * state[1]);
+    jacobian->data[0][0] = state[0] / distance;
+    jacobian->data[0][1] = state[1] / distance;
 }
 
-// Create a 2D state, 1D measurement EKF
-kalman_t *ekf = kalman_create(2, 1, 0);
-
-// Set EKF functions
-kalman_set_state_transition_function(ekf, state_transition_fn);
-kalman_set_state_jacobian_function(ekf, state_jacobian_fn);
-kalman_set_observation_function(ekf, observation_fn);
-kalman_set_observation_jacobian_function(ekf, observation_jacobian_fn);
-
-// ... initialize state and set other matrices (Q, R, P) ...
-
-// Prediction and update cycle
-kalman_predict(ekf, NULL);
-kalman_update(ekf, &measurement);
-
-// ... get results and cleanup ...
+kalman_set_state_transition_function(&ekf, next_state);
+kalman_set_state_jacobian_function(&ekf, next_state_jacobian);
+kalman_set_observation_function(&ekf, range);
+kalman_set_observation_jacobian_function(&ekf, range_jacobian);
 ```
 
-## API Reference
+A function without its Jacobian, or the other way round, makes `kalman_predict()` and `kalman_update()` return
+`kalman_status_incomplete_model` rather than quietly using the linear model.
 
-### Kalman Filter Functions
+## Mathematical background
 
-- `kalman_create()`: Creates a new filter instance.
-- `kalman_destroy()`: Frees all memory associated with the filter.
-- `kalman_initialize_state()`: Sets the initial state vector.
-- `kalman_set_state_transition_matrix()`: Sets the `F` matrix for a linear KF.
-- `kalman_set_observation_matrix()`: Sets the `H` matrix for a linear KF.
-- `kalman_set_process_noise_covariance()`: Sets the `Q` matrix.
-- `kalman_set_measurement_noise_covariance()`: Sets the `R` matrix.
-- `kalman_set_error_covariance()`: Sets the initial `P` matrix.
-- `kalman_predict()`: Performs the prediction step.
-- `kalman_update()`: Performs the update/correction step.
-- `kalman_get_state()`: Returns the current state vector.
-- `kalman_get_state_element()`: Returns a specific element from the state vector.
+### Prediction
 
-### EKF-Specific Functions
+- **Linear**: `x = F x + B u`
+- **Extended**: `x = f(x, u)`, with `F` the Jacobian of `f` evaluated at the estimate the step starts from
+- **Covariance**: `P = F P Fᵀ + Q`
 
-- `kalman_set_state_transition_function()`: Sets the non-linear state transition function `f(x, u)`.
-- `kalman_set_state_jacobian_function()`: Sets the function to compute the Jacobian of `f(x, u)`.
-- `kalman_set_observation_function()`: Sets the non-linear observation function `h(x)`.
-- `kalman_set_observation_jacobian_function()`: Sets the function to compute the Jacobian of `h(x)`.
+### Update
 
-### Matrix Functions
-
-- `matrix_allocate()`: Allocates memory for a new matrix.
-- `matrix_free()`: Frees memory used by a matrix.
-- `matrix_add()`: Performs matrix addition.
-- `matrix_subtract()`: Performs matrix subtraction.
-- `matrix_multiply()`: Performs matrix multiplication.
-- `matrix_transpose()`: Transposes a matrix.
-- `matrix_inverse()`: Computes the inverse of a matrix.
-- `matrix_identity()`: Creates an identity matrix.
-
-## Mathematical Background
-
-The filter implementation follows the standard discrete-time formulations.
-
-### Prediction Step
-
-- **KF**: `x(k|k-1) = F * x(k-1|k-1) + B * u(k-1)`
-- **EKF**: `x(k|k-1) = f(x(k-1|k-1), u(k-1))`
-- **Covariance**: `P(k|k-1) = F * P(k-1|k-1) * F^T + Q` (where `F` is the Jacobian for EKF)
-
-### Update Step
-
-- **Innovation (KF)**: `y(k) = z(k) - H * x(k|k-1)`
-- **Innovation (EKF)**: `y(k) = z(k) - h(x(k|k-1))`
-- **Innovation Covariance**: `S(k) = H * P(k|k-1) * H^T + R` (where `H` is the Jacobian for EKF)
-- **Kalman Gain**: `K(k) = P(k|k-1) * H^T * S(k)^(-1)`
-- **State Update**: `x(k|k) = x(k|k-1) + K(k) * y(k)`
-- **Covariance Update**: `P(k|k) = (I - K(k) * H) * P(k|k-1)`
+- **Innovation**: `y = z - H x` (linear) or `y = z - h(x)` (extended, with `H` the Jacobian of `h`)
+- **Innovation covariance**: `S = H P Hᵀ + R`
+- **Kalman gain**: `K = P Hᵀ S⁻¹`
+- **State**: `x = x + K y`
+- **Covariance**: `P = (I - K H) P`
 
 ## License
 

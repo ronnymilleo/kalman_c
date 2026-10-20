@@ -72,10 +72,12 @@ jobs:
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
 
-      # gcov writes one report per source, which the Coveralls uploader finds next to the sources
+      # gcov writes one report per source, which the Coveralls uploader finds next to the sources. It can also report
+      # the system headers the code includes, so the reports of anything outside src/ are removed
       - name: Report coverage
         run: |
           find build -name "*.gcda" | while read -r gcda; do gcov -p -o "$gcda" "$gcda"; done > /dev/null 2>&1
+          find . -maxdepth 1 -name '*.gcov' ! -name '*#src#*' -delete
           curl -sL https://coveralls.io/coveralls-linux.tar.gz | tar -xz && ./coveralls
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}

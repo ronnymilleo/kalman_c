@@ -1,10 +1,13 @@
 # KalmanC
 
+[![Release](https://img.shields.io/github/v/release/ronnymilleo/kalman_c)](https://github.com/ronnymilleo/kalman_c/releases)
+[![Release Date](https://img.shields.io/github/release-date/ronnymilleo/kalman_c)](https://github.com/ronnymilleo/kalman_c/releases)
 [![CI](https://github.com/ronnymilleo/kalman_c/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ronnymilleo/kalman_c/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/ronnymilleo/kalman_c/badge.svg?branch=main)](https://coveralls.io/github/ronnymilleo/kalman_c?branch=main)
 [![CodeFactor](https://www.codefactor.io/repository/github/ronnymilleo/kalman_c/badge)](https://www.codefactor.io/repository/github/ronnymilleo/kalman_c)
 
-Kalman and Extended Kalman filters in C, for state estimation on hosts and embedded targets.
+Kalman and Extended Kalman filters in C17, for state estimation on hosts and embedded targets. A C++17 version built on a
+dense matrix class, which does allocate memory, is [kalman_cpp](https://github.com/ronnymilleo/kalman_cpp).
 
 ## Features
 
@@ -14,6 +17,8 @@ Kalman and Extended Kalman filters in C, for state estimation on hosts and embed
   memory. Capacity is fixed at compile time (see [Capacity](#capacity)).
 - **Status codes**: every function reports success or the kind of failure through `kalman_status_t` or
   `matrix_status_t`; results come back through out-parameters.
+- **Angles**: an optional residual function and state normalizer let headings and bearings wrap around, so an estimate
+  does not jump when an angle crosses the +-pi boundary (see [Angles](#angles)).
 - **Small matrix module**: addition, subtraction, transpose, multiplication and inversion by Gauss-Jordan elimination
   with partial pivoting.
 - **Unit tests with Unity** that run on the host and can be reused on a target.
@@ -32,7 +37,8 @@ Kalman and Extended Kalman filters in C, for state estimation on hosts and embed
 
 ## Building
 
-You need CMake 3.28 or newer, Ninja and a C17 compiler (GCC, Clang or MSVC).
+You need CMake 3.28 or newer, Ninja and a C17 compiler. The CI builds with GCC and Clang, on Linux, macOS and Windows;
+MSVC is not tested.
 
 ```bash
 # Unity is only needed for the tests

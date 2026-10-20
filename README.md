@@ -1,5 +1,7 @@
 # KalmanC
 
+[![Release](https://img.shields.io/github/v/release/ronnymilleo/kalman_c)](https://github.com/ronnymilleo/kalman_c/releases)
+[![Release Date](https://img.shields.io/github/release-date/ronnymilleo/kalman_c)](https://github.com/ronnymilleo/kalman_c/releases)
 [![CI](https://github.com/ronnymilleo/kalman_c/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ronnymilleo/kalman_c/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/ronnymilleo/kalman_c/badge.svg?branch=main)](https://coveralls.io/github/ronnymilleo/kalman_c?branch=main)
 [![CodeFactor](https://www.codefactor.io/repository/github/ronnymilleo/kalman_c/badge)](https://www.codefactor.io/repository/github/ronnymilleo/kalman_c)

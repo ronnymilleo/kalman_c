@@ -1,130 +1,31 @@
-# Kalman Filter Test Suite
+# Tests
 
-This directory contains comprehensive unit tests for the Kalman filter implementation, organized into focused test modules to reduce redundancy and improve maintainability.
+The tests use [Unity](https://github.com/ThrowTheSwitch/Unity), a git submodule in `vendor/unity`. Each executable holds
+the tests of one topic and is registered with CTest.
 
-## Test Organization
+| Executable               | Covers                                                                              |
+|--------------------------|-------------------------------------------------------------------------------------|
+| `matrix_tests`           | Construction, arithmetic, transpose, multiplication and inversion of matrices       |
+| `kalman_tests`           | Setup, validation, prediction and update of the linear filter                       |
+| `kalman_ekf_tests`       | Non-linear prediction and update, Jacobian evaluation, incomplete models            |
+| `kalman_tracking_tests`  | The filter following a moving object through noisy measurements                     |
 
-### Core Test Files
+`test_support.[ch]` holds what they share: a pseudo-random generator, so noisy scenarios give the same numbers on every
+platform, and builders for the usual position and velocity models.
 
-- **`test_matrix.c`** - Matrix math operations tests
-  - Matrix addition, subtraction, multiplication
-  - Matrix transpose and identity matrix creation
-  - Memory allocation and error handling
+## Running
 
-- **`test_ekf.c`** - Extended Kalman Filter tests
-  - Non-linear state transition and observation functions
-  - Jacobian matrix validation
-  - EKF-specific functionality
-
-### Standard Kalman Filter Tests (Split into focused modules)
-
-- **`test_kalman_basic.c`** - Basic functionality tests
-  - Filter creation and initialization
-  - Basic prediction and update steps
-  - Matrix setup and configuration validation
-
-- **`test_kalman_1d.c`** - 1D tracking tests
-  - 1D position and velocity tracking with constant velocity model
-  - Convergence validation with poor initial estimates
-  - Initial conditions robustness testing
-
-- **`test_kalman_2d.c`** - 2D tracking tests
-  - 2D object tracking with position and velocity estimation
-  - Multi-dimensional state space validation
-  - Motion patterns testing (horizontal, vertical, diagonal)
-
-- **`test_kalman_noise.c`** - Noise sensitivity tests
-  - Performance analysis with different noise levels
-  - Process noise vs measurement noise trade-off analysis
-  - Convergence quality assessment
-
-## Building and Running Tests
-
-### Build all tests
 ```bash
-cd tests
-mkdir build && cd build
-cmake ..
-make
+git submodule update --init vendor/unity
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug
 ```
 
-### Run individual test modules
-```bash
-# Run basic functionality tests
-./test_kalman_basic
+## Adding a test
 
-# Run 1D tracking tests
-./test_kalman_1d
-
-# Run 2D tracking tests
-./test_kalman_2d
-
-# Run noise sensitivity tests
-./test_kalman_noise
-
-# Run matrix math tests
-./test_matrix
-
-# Run EKF tests
-./test_ekf
-```
-
-### Run all tests using CMake targets
-```bash
-# Run all tests sequentially
-make run_tests
-
-# Run with memory checking (requires Valgrind)
-make run_tests_memcheck
-
-# Run with code coverage (if enabled)
-make coverage
-```
-
-## Test Coverage
-
-The test suite covers:
-
-1. **Basic Operations**
-   - Filter creation and destruction
-   - State initialization and retrieval
-   - Matrix configuration
-
-2. **Core Functionality**
-   - Prediction step validation
-   - Update step validation
-   - State estimation accuracy
-
-3. **Practical Applications**
-   - 1D constant velocity tracking
-   - 2D multi-dimensional tracking
-   - Different motion patterns
-
-4. **Robustness**
-   - Noise sensitivity analysis
-   - Initial condition variations
-   - Process vs measurement noise trade-offs
-
-5. **Advanced Features**
-   - Extended Kalman Filter functionality
-   - Non-linear system handling
-   - Matrix operations validation
-
-## Adding New Tests
-
-To add new test scenarios:
-
-1. Create a new test file following the naming convention `test_kalman_<category>.c`
-2. Include the standard test infrastructure (headers, result tracking, color codes)
-3. Add the executable to `CMakeLists.txt`
-4. Update the test runner in `test_kalman.c` if needed
-5. Follow the existing test patterns for consistency
-
-## Test Output
-
-All tests provide:
-- Colored output for easy identification of pass/fail status
-- Detailed progress information
-- Summary statistics
-- Error thresholds and validation criteria
-- Performance metrics where applicable 
+1. Write a `static void test_<what happens>(void)` function in the executable of the topic. Name it as a sentence that
+   states the behavior.
+2. Register it with `RUN_TEST` in that file's `main`.
+3. A new executable goes into `tests/CMakeLists.txt` through `kalman_c_add_test()` and into
+   `KALMAN_C_FORMAT_SOURCES` in the top-level `CMakeLists.txt`.

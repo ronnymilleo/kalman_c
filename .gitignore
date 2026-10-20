@@ -71,6 +71,7 @@ CMakeUserPresets.json
 ## Folders
 .cache/
 build/
+out/
 bin/
 Release/
 Debug/

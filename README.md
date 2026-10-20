@@ -1,5 +1,9 @@
 # KalmanC
 
+[![CI](https://github.com/ronnymilleo/kalman_c/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ronnymilleo/kalman_c/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/ronnymilleo/kalman_c/badge.svg?branch=main)](https://coveralls.io/github/ronnymilleo/kalman_c?branch=main)
+[![CodeFactor](https://www.codefactor.io/repository/github/ronnymilleo/kalman_c/badge)](https://www.codefactor.io/repository/github/ronnymilleo/kalman_c)
+
 Kalman and Extended Kalman filters in C, for state estimation on hosts and embedded targets.
 
 ## Features
@@ -54,7 +58,7 @@ ctest --test-dir build --output-on-failure
 | `KALMAN_C_BUILD_TESTS`        | `OFF`   | Build the unit tests                                       |
 | `KALMAN_C_WARNINGS_AS_ERRORS` | `OFF`   | Make warnings in the project's code fail the build         |
 | `KALMAN_C_ENABLE_SANITIZERS`  | `OFF`   | AddressSanitizer and UndefinedBehaviorSanitizer            |
-| `KALMAN_C_ENABLE_COVERAGE`    | `OFF`   | Instrument the code for `gcov`/`llvm-cov`                  |
+| `KALMAN_C_ENABLE_COVERAGE`    | `OFF`   | Instrument the libraries for `gcov` (GCC or Clang)         |
 
 Building also runs `clang-format` over the sources when it is installed, through the `format` target.
 

@@ -45,7 +45,7 @@ endif()
 # =============================================================================
 
 option(KALMAN_C_BUILD_TESTS "Build unit tests" OFF)
-option(KALMAN_C_ENABLE_COVERAGE "Instrument the code for coverage reports" OFF)
+option(KALMAN_C_ENABLE_COVERAGE "Instrument the libraries for coverage reports (GCC or Clang)" OFF)
 option(KALMAN_C_ENABLE_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(KALMAN_C_WARNINGS_AS_ERRORS "Treat warnings in the project's own code as errors" OFF)
 
@@ -88,9 +88,14 @@ function(kalman_c_configure_target target)
         )
         target_link_options(${target} PRIVATE -fsanitize=address,undefined)
     endif()
-    if(KALMAN_C_ENABLE_COVERAGE)
+endfunction()
+
+# Coverage is measured on the libraries only, so neither the tests nor Unity count; the link option is PUBLIC because
+# whatever links a static library built with --coverage needs the runtime that writes the data
+function(kalman_c_target_coverage target)
+    if(KALMAN_C_ENABLE_COVERAGE AND CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang)$")
         target_compile_options(${target} PRIVATE --coverage)
-        target_link_options(${target} PRIVATE --coverage)
+        target_link_options(${target} PUBLIC --coverage)
     endif()
 endfunction()
 

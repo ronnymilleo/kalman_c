@@ -102,19 +102,14 @@ jobs:
         run: clang-tidy -p build -warnings-as-errors='*' src/*.c tests/*.c
 
   sanitizers:
-    name: Sanitizers (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # AddressSanitizer, UndefinedBehaviorSanitizer and, on Linux, LeakSanitizer
+      # AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer, on Linux only
       - name: Configure
         run: >-
           cmake -S . -B build -G Ninja

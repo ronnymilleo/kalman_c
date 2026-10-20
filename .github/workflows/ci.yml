@@ -2,65 +2,90 @@ name: CI
 
 on:
   push:
-    branches: ["main", "develop", "dev/**"]
   pull_request:
-    branches: ["main", "develop"]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build and test (${{ matrix.os }}, ${{ matrix.c_compiler }})
-    runs-on: ${{ matrix.os }}
+  linux:
+    name: Linux (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
     strategy:
-      # Let every platform report, so one failure does not hide another
+      # Let every job report, so one failure does not hide another
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            c_compiler: gcc
-          - os: ubuntu-latest
-            c_compiler: clang
-          # Windows builds with the clang that ships on the runner
-          - os: windows-latest
-            c_compiler: clang
-          - os: macos-latest
-            c_compiler: clang
-
+        compiler: [gcc, clang]
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the repository
+        uses: actions/checkout@v4
         with:
           # Unity comes in as a git submodule
           submodules: recursive
 
-      # Without clang-format the format target does nothing and the formatting check below would pass vacuously
+      # Without clang-format the format target does nothing and the formatting check would pass vacuously
       - name: Install clang-format
-        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y clang-format
 
       - name: Configure
-        run: >
+        run: >-
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.compiler }}
           -DKALMAN_C_BUILD_TESTS=ON
           -DKALMAN_C_WARNINGS_AS_ERRORS=ON
 
-      # The build runs clang-format over the sources before compiling
       - name: Build
         run: cmake --build build
 
-      # Formatting is checked on one job only; the others would report the same files
+      # The build runs clang-format on every source, so any change means unformatted code was committed
       - name: Check formatting
-        if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'gcc'
+        if: matrix.compiler == 'gcc'
         run: git diff --exit-code -- '*.c' '*.h'
 
-      - name: Test
+      - name: Run tests
         run: ctest --test-dir build --output-on-failure
 
-  lint:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DKALMAN_C_BUILD_TESTS=ON
+          -DKALMAN_C_ENABLE_COVERAGE=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      # gcov writes one report per source, which the Coveralls uploader finds next to the sources
+      - name: Report coverage
+        run: |
+          find build -name "*.gcda" | while read -r gcda; do gcov -p -o "$gcda" "$gcda"; done > /dev/null 2>&1
+          curl -sL https://coveralls.io/coveralls-linux.tar.gz | tar -xz && ./coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  naming:
     name: clang-tidy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the repository
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -71,7 +96,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DKALMAN_C_BUILD_TESTS=ON
 
-      - name: Run clang-tidy
+      - name: Check naming
         run: clang-tidy -p build -warnings-as-errors='*' src/*.c tests/*.c
 
   sanitizers:
@@ -81,15 +106,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the repository
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       # AddressSanitizer, UndefinedBehaviorSanitizer and, on Linux, LeakSanitizer
       - name: Configure
-        run: >
+        run: >-
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_C_COMPILER=clang
@@ -99,5 +124,50 @@ jobs:
       - name: Build
         run: cmake --build build
 
-      - name: Test
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+  windows:
+    # The runner has Ninja and the LLVM clang; Visual Studio's own compiler is not used here
+    runs-on: windows-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=clang
+          -DKALMAN_C_BUILD_TESTS=ON
+          -DKALMAN_C_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=clang
+          -DKALMAN_C_BUILD_TESTS=ON
+          -DKALMAN_C_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run tests
         run: ctest --test-dir build --output-on-failure

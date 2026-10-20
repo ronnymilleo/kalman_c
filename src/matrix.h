@@ -1,179 +1,55 @@
 /**
- * @file matrix_math.h
- * @brief Matrix operations library for numerical computations
- * @author ronnymilleo
- * @date 08/07/25
- * @version 1.0
- * 
- * This file contains declarations for matrix operations including allocation,
- * deallocation, and mathematical operations such as addition, subtraction,
- * multiplication, transpose, and inversion. All functions use double precision
- * floating point arithmetic and follow C99 standards.
- * 
- * @note All matrices are represented as double** (pointer to pointer to double)
- * @note Error handling is done through return codes: 0 for success, -1 for failure
- * @note Memory allocation failures return NULL pointers
+ * @file    matrix.h
+ * @brief   Fixed-capacity matrices and the linear algebra the Kalman filters need.
  */
 
-#ifndef MATRIX_MATH_H
-#define MATRIX_MATH_H
+#ifndef KALMAN_C_MATRIX_H
+#define KALMAN_C_MATRIX_H
 
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
+// Largest number of rows or columns a matrix can have; override with -DMATRIX_MAX_DIM=n to fit the target's memory
+#ifndef MATRIX_MAX_DIM
+#define MATRIX_MAX_DIM 8
 #endif
 
-/** @defgroup memory_management Memory Management
- *  @brief Functions for matrix memory allocation and deallocation
- *  @{
+/**
+ * @enum    matrix_status_t
+ * @brief   Outcome of a matrix operation.
  */
+typedef enum matrix_status_t {
+    matrix_status_ok = 0,
+    matrix_status_null_argument,
+    matrix_status_invalid_size,
+    matrix_status_size_mismatch,
+    matrix_status_singular,
+} matrix_status_t;
 
 /**
- * @brief Allocate memory for a 2D matrix
- * 
- * Allocates memory for a 2D matrix using a pointer-to-pointer structure.
- * The memory is initialized to zero using calloc().
- * 
- * @param rows Number of rows (must be > 0)
- * @param cols Number of columns (must be > 0)
- * 
- * @return Pointer to allocated matrix on success, NULL on failure
- * 
- * @note Memory is zero-initialized using calloc()
- * @note Each row is allocated separately for maximum flexibility
- * @note Must be freed using matrix_free() to avoid memory leaks
- * 
- * @warning Returns NULL if memory allocation fails
- * @warning Returns NULL if rows or cols is 0
- * 
- * @see matrix_free()
+ * @struct  matrix_t
+ * @brief   Row-major matrix stored inline, so it needs no dynamic allocation.
+ * @details Only the first `rows` x `cols` entries of `data` are in use, and both must be between 1 and
+ *          MATRIX_MAX_DIM. Fill a matrix with matrix_init() or matrix_from_values() before using it.
  */
-double** matrix_allocate(size_t rows, size_t cols);
+typedef struct matrix_t {
+    size_t rows;
+    size_t cols;
+    double data[MATRIX_MAX_DIM][MATRIX_MAX_DIM];
+} matrix_t;
 
-/**
- * Free memory for a 2D array (matrix)
- * @param matrix Matrix to free
- * @param rows Number of rows
- */
-void matrix_free(double **matrix, size_t rows);
+// Construction
+matrix_status_t matrix_init(matrix_t *matrix, size_t rows, size_t cols);
+matrix_status_t matrix_from_values(matrix_t *matrix, size_t rows, size_t cols, const double *values);
+matrix_status_t matrix_identity(matrix_t *matrix, size_t size);
 
-/**
- * Copy matrix A to matrix B
- * @param A Source matrix
- * @param B Destination matrix
- * @param rows Number of rows
- * @param cols Number of columns
- */
-void matrix_copy(double **A, double **B, size_t rows, size_t cols);
+// Element-wise arithmetic
+matrix_status_t matrix_add(const matrix_t *a, const matrix_t *b, matrix_t *result);
+matrix_status_t matrix_subtract(const matrix_t *a, const matrix_t *b, matrix_t *result);
 
-/** @} */ // end of memory_management group
+// Products and transforms
+matrix_status_t matrix_transpose(const matrix_t *a, matrix_t *result);
+matrix_status_t matrix_multiply(const matrix_t *a, const matrix_t *b, matrix_t *result);
+matrix_status_t matrix_vector_multiply(const matrix_t *a, const double *vector, double *result);
+matrix_status_t matrix_inverse(const matrix_t *a, matrix_t *result);
 
-/** @defgroup basic_operations Basic Matrix Operations
- *  @brief Fundamental matrix arithmetic operations
- *  @{
- */
-
-/**
- * Matrix addition: result = A + B
- * @param A First matrix
- * @param B Second matrix
- * @param result Result matrix
- * @param rows Number of rows
- * @param cols Number of columns
- * @return 0 on success, -1 on failure
- */
-int matrix_add(double **A, double **B, double **result, size_t rows, size_t cols);
-
-/**
- * Matrix subtraction: result = A - B
- * @param A First matrix
- * @param B Second matrix
- * @param result Result matrix
- * @param rows Number of rows
- * @param cols Number of columns
- * @return 0 on success, -1 on failure
- */
-int matrix_subtract(double **A, double **B, double **result, size_t rows, size_t cols);
-
-/**
- * Matrix transpose: result = A^T
- * @param A Input matrix
- * @param result Result matrix
- * @param rows Number of rows in A
- * @param cols Number of columns in A
- * @return 0 on success, -1 on failure
- */
-int matrix_transpose(double **A, double **result, size_t rows, size_t cols);
-
-/** @} */ // end of basic_operations group
-
-/** @defgroup advanced_operations Advanced Matrix Operations
- *  @brief Complex matrix operations and linear algebra
- *  @{
- */
-
-/**
- * Matrix multiplication: result = A * B
- * @param A First matrix (rowsA x colsA)
- * @param B Second matrix (colsA x colsB)
- * @param result Result matrix (rowsA x colsB)
- * @param rowsA Number of rows in A
- * @param colsA Number of columns in A (must equal rows in B)
- * @param colsB Number of columns in B
- * @return 0 on success, -1 on failure
- */
-int matrix_multiply(double **A, double **B, double **result, size_t rowsA, size_t colsA, size_t colsB);
-
-/**
- * Matrix-vector multiplication: result = A * v
- * @param A Matrix (rows x cols)
- * @param v Vector (cols elements)
- * @param result Result vector (rows elements)
- * @param rows Number of rows in A
- * @param cols Number of columns in A
- * @return 0 on success, -1 on failure
- */
-int matrix_vector_multiply(double **A, const double *v, double *result, size_t rows, size_t cols);
-
-/**
- * Create identity matrix
- * @param result Result matrix (n x n)
- * @param n Matrix size
- * @return 0 on success, -1 on failure
- */
-int matrix_identity(double **result, size_t n);
-
-/**
- * @brief Matrix inversion using Gaussian elimination
- * 
- * Computes the inverse of a square matrix using Gaussian elimination
- * with partial pivoting for numerical stability. The algorithm creates
- * an augmented matrix [A|I] and reduces it to [I|A^(-1)].
- * 
- * @param A Input matrix (n x n, must be square and non-singular)
- * @param result Result matrix where inverse will be stored (n x n)
- * @param n Matrix size (number of rows and columns)
- * 
- * @return 0 on success, -1 on failure
- * 
- * @note Uses partial pivoting for numerical stability
- * @note Checks for singular matrices (determinant near zero)
- * @note Input matrix A is not modified during computation
- * 
- * @warning Returns -1 if matrix is singular or near-singular
- * @warning Returns -1 if memory allocation for temporary matrices fails
- * @warning Returns -1 if input parameters are NULL
- * 
- * @see matrix_multiply()
- * @see matrix_identity()
- */
-int matrix_inverse(double **A, double **result, size_t n);
-
-/** @} */ // end of advanced_operations group
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif //MATRIX_MATH_H
+#endif // KALMAN_C_MATRIX_H

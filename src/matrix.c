@@ -1,198 +1,274 @@
 /**
- * @file matrix_math.c
- * @brief Implementation of matrix operations for numerical computations
- * @author ronnymilleo
- * @date 08/07/25
- * @version 1.0
- * 
- * This file implements matrix operations including memory management,
- * basic arithmetic operations, and advanced operations like matrix
- * inversion using Gaussian elimination with partial pivoting.
- * 
- * @details Implementation features:
- * - Dynamic memory allocation with error checking
- * - Robust error handling with proper cleanup
- * - Optimized algorithms for common operations
- * - Numerical stability considerations
- * 
- * @note All functions use double precision arithmetic
- * @note Memory allocation uses calloc() for zero-initialization
- * @note Matrix inversion uses Gaussian elimination with partial pivoting
+ * @file    matrix.c
+ * @brief   Fixed-capacity matrices and the linear algebra the Kalman filters need.
  */
 
-#include "matrix_math.h"
-#include <stdlib.h>
+#include "matrix.h"
+
 #include <math.h>
+#include <stdbool.h>
 
-double** matrix_allocate(const size_t rows, const size_t cols) {
-    double **matrix = (double**)malloc(rows * sizeof(double*));
-    if (!matrix) return NULL;
-    
-    for (size_t i = 0; i < rows; i++) {
-        matrix[i] = (double*)calloc(cols, sizeof(double));
-        if (!matrix[i]) {
-            // Free previously allocated rows on failure
-            for (size_t j = 0; j < i; j++) {
-                free(matrix[j]);
+// A pivot smaller than this share of the largest entry is treated as zero; a fixed absolute limit would reject
+// well-conditioned matrices whose entries are all tiny, such as a converged covariance
+static const double singular_relative_tolerance = 1e-12;
+
+static bool is_valid_size(const size_t rows, const size_t cols) {
+    return rows >= 1 && rows <= MATRIX_MAX_DIM && cols >= 1 && cols <= MATRIX_MAX_DIM;
+}
+
+static double largest_magnitude(const matrix_t *matrix) {
+    double largest = 0.0;
+    for (size_t row = 0; row < matrix->rows; row++) {
+        for (size_t col = 0; col < matrix->cols; col++) {
+            largest = fmax(largest, fabs(matrix->data[row][col]));
+        }
+    }
+    return largest;
+}
+
+/**
+ * @brief   Sets the size of a matrix and fills it with zeros.
+ * @param[out] matrix  Matrix to initialize.
+ * @param[in]  rows    Number of rows, from 1 to MATRIX_MAX_DIM.
+ * @param[in]  cols    Number of columns, from 1 to MATRIX_MAX_DIM.
+ * @return  matrix_status_ok, or why the matrix could not be initialized.
+ */
+matrix_status_t matrix_init(matrix_t *matrix, const size_t rows, const size_t cols) {
+    if (matrix == NULL) {
+        return matrix_status_null_argument;
+    }
+    if (!is_valid_size(rows, cols)) {
+        return matrix_status_invalid_size;
+    }
+    *matrix = (matrix_t){.rows = rows, .cols = cols};
+    return matrix_status_ok;
+}
+
+/**
+ * @brief   Sets the size of a matrix and fills it from a flat list of values.
+ * @param[out] matrix  Matrix to fill.
+ * @param[in]  rows    Number of rows, from 1 to MATRIX_MAX_DIM.
+ * @param[in]  cols    Number of columns, from 1 to MATRIX_MAX_DIM.
+ * @param[in]  values  `rows * cols` values in row-major order.
+ * @return  matrix_status_ok, or why the matrix could not be filled.
+ */
+matrix_status_t matrix_from_values(matrix_t *matrix, const size_t rows, const size_t cols, const double *values) {
+    if (values == NULL) {
+        return matrix_status_null_argument;
+    }
+    const matrix_status_t status = matrix_init(matrix, rows, cols);
+    if (status != matrix_status_ok) {
+        return status;
+    }
+    for (size_t row = 0; row < rows; row++) {
+        for (size_t col = 0; col < cols; col++) {
+            matrix->data[row][col] = values[row * cols + col];
+        }
+    }
+    return matrix_status_ok;
+}
+
+/**
+ * @brief   Turns a matrix into the identity matrix of a given size.
+ * @param[out] matrix  Matrix to overwrite.
+ * @param[in]  size    Number of rows and columns, from 1 to MATRIX_MAX_DIM.
+ * @return  matrix_status_ok, or why the matrix could not be initialized.
+ */
+matrix_status_t matrix_identity(matrix_t *matrix, const size_t size) {
+    const matrix_status_t status = matrix_init(matrix, size, size);
+    if (status != matrix_status_ok) {
+        return status;
+    }
+    for (size_t index = 0; index < size; index++) {
+        matrix->data[index][index] = 1.0;
+    }
+    return matrix_status_ok;
+}
+
+/**
+ * @brief   Adds two matrices of the same size.
+ * @param[in]  a       First matrix.
+ * @param[in]  b       Second matrix.
+ * @param[out] result  Sum `a + b`; it may be the same matrix as `a` or `b`.
+ * @return  matrix_status_ok, or why the sum could not be computed.
+ */
+matrix_status_t matrix_add(const matrix_t *a, const matrix_t *b, matrix_t *result) {
+    if (a == NULL || b == NULL || result == NULL) {
+        return matrix_status_null_argument;
+    }
+    if (a->rows != b->rows || a->cols != b->cols) {
+        return matrix_status_size_mismatch;
+    }
+    result->rows = a->rows;
+    result->cols = a->cols;
+    for (size_t row = 0; row < a->rows; row++) {
+        for (size_t col = 0; col < a->cols; col++) {
+            result->data[row][col] = a->data[row][col] + b->data[row][col];
+        }
+    }
+    return matrix_status_ok;
+}
+
+/**
+ * @brief   Subtracts a matrix from another of the same size.
+ * @param[in]  a       Matrix to subtract from.
+ * @param[in]  b       Matrix to subtract.
+ * @param[out] result  Difference `a - b`; it may be the same matrix as `a` or `b`.
+ * @return  matrix_status_ok, or why the difference could not be computed.
+ */
+matrix_status_t matrix_subtract(const matrix_t *a, const matrix_t *b, matrix_t *result) {
+    if (a == NULL || b == NULL || result == NULL) {
+        return matrix_status_null_argument;
+    }
+    if (a->rows != b->rows || a->cols != b->cols) {
+        return matrix_status_size_mismatch;
+    }
+    result->rows = a->rows;
+    result->cols = a->cols;
+    for (size_t row = 0; row < a->rows; row++) {
+        for (size_t col = 0; col < a->cols; col++) {
+            result->data[row][col] = a->data[row][col] - b->data[row][col];
+        }
+    }
+    return matrix_status_ok;
+}
+
+/**
+ * @brief   Swaps the rows and columns of a matrix.
+ * @param[in]  a       Matrix to transpose.
+ * @param[out] result  Transpose of `a`; it may be the same matrix as `a`.
+ * @return  matrix_status_ok, or why the transpose could not be computed.
+ */
+matrix_status_t matrix_transpose(const matrix_t *a, matrix_t *result) {
+    if (a == NULL || result == NULL) {
+        return matrix_status_null_argument;
+    }
+    // Built apart from the result, so that transposing a matrix onto itself works
+    matrix_t transposed = {.rows = a->cols, .cols = a->rows};
+    for (size_t row = 0; row < a->rows; row++) {
+        for (size_t col = 0; col < a->cols; col++) {
+            transposed.data[col][row] = a->data[row][col];
+        }
+    }
+    *result = transposed;
+    return matrix_status_ok;
+}
+
+/**
+ * @brief   Multiplies two matrices.
+ * @param[in]  a       Left matrix, `m x k`.
+ * @param[in]  b       Right matrix, `k x n`.
+ * @param[out] result  Product `a * b`, `m x n`; it may be the same matrix as `a` or `b`.
+ * @return  matrix_status_ok, or why the product could not be computed.
+ */
+matrix_status_t matrix_multiply(const matrix_t *a, const matrix_t *b, matrix_t *result) {
+    if (a == NULL || b == NULL || result == NULL) {
+        return matrix_status_null_argument;
+    }
+    if (a->cols != b->rows) {
+        return matrix_status_size_mismatch;
+    }
+    // Built apart from the result, so that it may share storage with either operand
+    matrix_t product = {.rows = a->rows, .cols = b->cols};
+    for (size_t row = 0; row < a->rows; row++) {
+        for (size_t col = 0; col < b->cols; col++) {
+            for (size_t inner = 0; inner < a->cols; inner++) {
+                product.data[row][col] += a->data[row][inner] * b->data[inner][col];
             }
-            free(matrix);
-            return NULL;
         }
     }
-    return matrix;
+    *result = product;
+    return matrix_status_ok;
 }
 
-void matrix_free(double **matrix, const size_t rows) {
-    if (!matrix) return;
-    
-    for (size_t i = 0; i < rows; i++) {
-        free(matrix[i]);
+/**
+ * @brief   Multiplies a matrix by a column vector.
+ * @param[in]  a       Matrix, `m x n`.
+ * @param[in]  vector  `n` values.
+ * @param[out] result  `m` values holding `a * vector`; it may be the same array as `vector` when `m == n`.
+ * @return  matrix_status_ok, or why the product could not be computed.
+ */
+matrix_status_t matrix_vector_multiply(const matrix_t *a, const double *vector, double *result) {
+    if (a == NULL || vector == NULL || result == NULL) {
+        return matrix_status_null_argument;
     }
-    free(matrix);
-}
-
-void matrix_copy(double **A, double **B, const size_t rows, const size_t cols) {
-    if (!A || !B) return;
-    
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            B[i][j] = A[i][j];
+    double product[MATRIX_MAX_DIM] = {0.0};
+    for (size_t row = 0; row < a->rows; row++) {
+        for (size_t col = 0; col < a->cols; col++) {
+            product[row] += a->data[row][col] * vector[col];
         }
     }
-}
-
-int matrix_add(double **A, double **B, double **result, const size_t rows, const size_t cols) {
-    if (!A || !B || !result) return -1;
-
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            result[i][j] = A[i][j] + B[i][j];
-        }
+    for (size_t row = 0; row < a->rows; row++) {
+        result[row] = product[row];
     }
-    return 0;
+    return matrix_status_ok;
 }
 
-int matrix_subtract(double **A, double **B, double **result, const size_t rows, const size_t cols) {
-    if (!A || !B || !result) return -1;
-
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            result[i][j] = A[i][j] - B[i][j];
-        }
+/**
+ * @brief   Inverts a square matrix by Gauss-Jordan elimination with partial pivoting.
+ * @param[in]  a       Square matrix to invert.
+ * @param[out] result  Inverse of `a`; it may be the same matrix as `a`, and is left untouched on failure.
+ * @return  matrix_status_ok, matrix_status_singular when `a` has no inverse, or why the input is unusable.
+ */
+matrix_status_t matrix_inverse(const matrix_t *a, matrix_t *result) {
+    if (a == NULL || result == NULL) {
+        return matrix_status_null_argument;
     }
-    return 0;
-}
-
-int matrix_transpose(double **A, double **result, const size_t rows, const size_t cols) {
-    if (!A || !result) return -1;
-
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            result[j][i] = A[i][j];
-        }
+    if (a->rows != a->cols) {
+        return matrix_status_size_mismatch;
     }
-    return 0;
-}
 
-int matrix_multiply(double **A, double **B, double **result, const size_t rowsA, const size_t colsA, const size_t colsB) {
-    if (!A || !B || !result) return -1;
+    const size_t size = a->rows;
+    const double tolerance = singular_relative_tolerance * largest_magnitude(a);
 
-    for (size_t i = 0; i < rowsA; i++) {
-        for (size_t j = 0; j < colsB; j++) {
-            result[i][j] = 0.0;
-            for (size_t k = 0; k < colsA; k++) {
-                result[i][j] += A[i][k] * B[k][j];
+    // Work on [A | I]; once A has been reduced to the identity, the right half holds its inverse
+    double augmented[MATRIX_MAX_DIM][2 * MATRIX_MAX_DIM] = {{0.0}};
+    for (size_t row = 0; row < size; row++) {
+        for (size_t col = 0; col < size; col++) {
+            augmented[row][col] = a->data[row][col];
+        }
+        augmented[row][size + row] = 1.0;
+    }
+
+    for (size_t pivot_index = 0; pivot_index < size; pivot_index++) {
+        size_t pivot_row = pivot_index;
+        for (size_t row = pivot_index + 1; row < size; row++) {
+            if (fabs(augmented[row][pivot_index]) > fabs(augmented[pivot_row][pivot_index])) {
+                pivot_row = row;
             }
         }
-    }
-    return 0;
-}
-
-int matrix_vector_multiply(double **A, const double *v, double *result, const size_t rows, const size_t cols) {
-    if (!A || !v || !result) return -1;
-
-    for (size_t i = 0; i < rows; i++) {
-        result[i] = 0.0;
-        for (size_t j = 0; j < cols; j++) {
-            result[i] += A[i][j] * v[j];
+        if (fabs(augmented[pivot_row][pivot_index]) <= tolerance) {
+            return matrix_status_singular;
         }
-    }
-    return 0;
-}
-
-int matrix_identity(double **result, const size_t n) {
-    if (!result) return -1;
-    
-    for (size_t i = 0; i < n; i++) {
-        for (size_t j = 0; j < n; j++) {
-            result[i][j] = (i == j) ? 1.0 : 0.0;
-        }
-    }
-    return 0;
-}
-
-int matrix_inverse(double **A, double **result, const size_t n) {
-    if (!A || !result) return -1;
-
-    // Create augmented matrix [A|I]
-    double **augmented = matrix_allocate(n, 2 * n);
-    if (!augmented) return -1;
-
-    // Initialize augmented matrix
-    for (size_t i = 0; i < n; i++) {
-        for (size_t j = 0; j < n; j++) {
-            augmented[i][j] = A[i][j];
-        }
-        augmented[i][i + n] = 1.0;
-    }
-
-    // Gaussian elimination
-    for (size_t i = 0; i < n; i++) {
-        // Find pivot
-        size_t maxRow = i;
-        for (size_t k = i + 1; k < n; k++) {
-            if (fabs(augmented[k][i]) > fabs(augmented[maxRow][i])) {
-                maxRow = k;
+        if (pivot_row != pivot_index) {
+            for (size_t col = 0; col < 2 * size; col++) {
+                const double swapped = augmented[pivot_index][col];
+                augmented[pivot_index][col] = augmented[pivot_row][col];
+                augmented[pivot_row][col] = swapped;
             }
         }
 
-        // Swap rows if needed
-        if (maxRow != i) {
-            double *temp = augmented[i];
-            augmented[i] = augmented[maxRow];
-            augmented[maxRow] = temp;
+        const double pivot = augmented[pivot_index][pivot_index];
+        for (size_t col = 0; col < 2 * size; col++) {
+            augmented[pivot_index][col] /= pivot;
         }
-
-        // Check for singular matrix
-        if (fabs(augmented[i][i]) < 1e-12) {
-            matrix_free(augmented, n);
-            return -1;
-        }
-
-        // Normalize pivot row
-        const double pivot = augmented[i][i];
-        for (size_t j = 0; j < 2 * n; j++) {
-            augmented[i][j] /= pivot;
-        }
-
-        // Eliminate other rows
-        for (size_t k = 0; k < n; k++) {
-            if (k != i) {
-                const double factor = augmented[k][i];
-                for (size_t j = 0; j < 2 * n; j++) {
-                    augmented[k][j] -= factor * augmented[i][j];
-                }
+        for (size_t row = 0; row < size; row++) {
+            if (row == pivot_index) {
+                continue;
+            }
+            const double factor = augmented[row][pivot_index];
+            for (size_t col = 0; col < 2 * size; col++) {
+                augmented[row][col] -= factor * augmented[pivot_index][col];
             }
         }
     }
 
-    // Extract inverse matrix
-    for (size_t i = 0; i < n; i++) {
-        for (size_t j = 0; j < n; j++) {
-            result[i][j] = augmented[i][j + n];
+    result->rows = size;
+    result->cols = size;
+    for (size_t row = 0; row < size; row++) {
+        for (size_t col = 0; col < size; col++) {
+            result->data[row][col] = augmented[row][size + col];
         }
     }
-
-    matrix_free(augmented, n);
-    return 0;
+    return matrix_status_ok;
 }

@@ -7,54 +7,47 @@
   },
   "configurePresets": [
     {
-      "name": "default",
-      "displayName": "Debug",
-      "binaryDir": "${sourceDir}/build/debug",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "gcc",
-        "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CONFIGURATION_TYPES": true
-      }
-    },
-    {
       "name": "debug",
       "displayName": "Debug",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CONFIGURATION_TYPES": true
+        "KALMAN_C_BUILD_TESTS": "ON"
       }
     },
     {
       "name": "release",
       "displayName": "Release",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CONFIGURATION_TYPES": true
+        "KALMAN_C_BUILD_TESTS": "ON"
       }
     },
     {
       "name": "clang-debug",
       "displayName": "Clang Debug",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/clang-debug",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CONFIGURATION_TYPES": true
+        "KALMAN_C_BUILD_TESTS": "ON"
       }
     },
     {
       "name": "clang-release",
       "displayName": "Clang Release",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/clang-release",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CONFIGURATION_TYPES": true
+        "KALMAN_C_BUILD_TESTS": "ON"
       }
     }
   ],
@@ -74,6 +67,36 @@
     {
       "name": "clang-release",
       "configurePreset": "clang-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "clang-debug",
+      "configurePreset": "clang-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "clang-release",
+      "configurePreset": "clang-release",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }
